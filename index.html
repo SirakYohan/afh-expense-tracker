@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AFH Expense Tracker</title>
+  <script src="node_modules/chart.js/dist/chart.umd.js"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <span class="logo-icon">🏠</span>
+      <div>
+        <div class="logo-title">AFH Expense</div>
+        <div class="logo-sub">Tracker</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <button class="nav-btn active" onclick="showTab('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-btn" onclick="showTab('log')">
+        <span class="nav-icon">📋</span> Expense Log
+      </button>
+      <button class="nav-btn" onclick="showTab('add')">
+        <span class="nav-icon">➕</span> Add Expense
+      </button>
+      <button class="nav-btn" onclick="showTab('reports')">
+        <span class="nav-icon">📁</span> Reports
+      </button>
+    </nav>
+    <div class="sidebar-date">
+      <label>Tracking date</label>
+      <input type="date" id="trackDate" />
+      <span class="today-pill" id="todayPill">Today</span>
+    </div>
+    <div class="sidebar-budget">
+      <label>Daily budget ($)</label>
+      <input type="number" id="budgetInput" value="500" min="0" step="10" />
+      <div class="budget-bar-bg">
+        <div class="budget-bar-fill" id="budgetBarFill"></div>
+      </div>
+      <div class="budget-remain" id="budgetRemain">$500.00 remaining</div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbarTitle">Dashboard</div>
+      <div class="topbar-actions">
+        <button class="btn-outline" onclick="exportCSV()">⬇ Export Report</button>
+        <button class="btn-outline danger" onclick="askClearAll()">🗑 Clear Day</button>
+      </div>
+    </div>
+
+    <div id="alertBanner" class="alert-banner" style="display:none"></div>
+
+    <!-- DASHBOARD TAB -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="stats-row">
+        <div class="stat-card accent">
+          <div class="stat-meter-row">
+            <div class="stat-meter-wrap">
+              <div class="stat-meter"><div class="stat-meter-fill" id="moneyFill"></div></div>
+              <div class="stat-meter-label">level</div>
+            </div>
+            <div>
+              <div class="stat-label">Total spent today</div>
+              <div class="stat-value large" id="totalSpent">$0.00</div>
+              <div class="stat-sub" id="spendLevel">No expenses logged</div>
+            </div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🔄 Reimbursable</div>
+          <div class="stat-value" id="reimbTotal">$0.00</div>
+          <div class="stat-sub">resident expenses</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">💊 Medical / meds</div>
+          <div class="stat-value" id="medTotal">$0.00</div>
+          <div class="stat-sub">health-related spend</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">🏠 Facility ops</div>
+          <div class="stat-value" id="opsTotal">$0.00</div>
+          <div class="stat-sub">maintenance & supplies</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">📄 Entries</div>
+          <div class="stat-value" id="entryCount">0</div>
+          <div class="stat-sub" id="receiptCount">0 receipts on file</div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">Spend by category</div>
+          <div id="pieEmpty" class="no-data">📊 Add expenses to see chart</div>
+          <div id="pieWrap" style="display:none">
+            <div style="position:relative;height:220px"><canvas id="pieChart" role="img" aria-label="Donut chart of AFH spending by category"></canvas></div>
+            <div class="legend" id="pieLegend"></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Category breakdown</div>
+          <div id="barEmpty" class="no-data">📊 Add expenses to see chart</div>
+          <div id="barWrap" style="display:none">
+            <div style="position:relative;height:280px"><canvas id="barChart" role="img" aria-label="Bar chart of spending per AFH category"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Care spend overview</div>
+        <div class="comp-grid" id="compGrid">
+          <div class="no-data" style="grid-column:1/-1">Log expenses to see care spend overview.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LOG TAB -->
+    <div id="tab-log" class="tab-content">
+      <div class="filter-row" id="filterRow">
+        <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+        <button class="filter-btn" onclick="setFilter('medications',this)">Medications</button>
+        <button class="filter-btn" onclick="setFilter('medical',this)">Medical supplies</button>
+        <button class="filter-btn" onclick="setFilter('personal_care',this)">Personal care</button>
+        <button class="filter-btn" onclick="setFilter('nutrition',this)">Nutrition</button>
+        <button class="filter-btn" onclick="setFilter('activities',this)">Activities</button>
+        <button class="filter-btn" onclick="setFilter('transport',this)">Transport</button>
+        <button class="filter-btn" onclick="setFilter('housekeeping',this)">Housekeeping</button>
+        <button class="filter-btn" onclick="setFilter('maintenance',this)">Maintenance</button>
+        <button class="filter-btn" onclick="setFilter('safety',this)">Safety</button>
+        <button class="filter-btn" onclick="setFilter('food',this)">Food</button>
+        <button class="filter-btn" onclick="setFilter('office',this)">Admin</button>
+        <button class="filter-btn" onclick="setFilter('utilities',this)">Utilities</button>
+      </div>
+      <div id="entryList" class="entry-list"></div>
+    </div>
+
+    <!-- ADD TAB -->
+    <div id="tab-add" class="tab-content">
+      <div class="card form-card">
+        <div class="card-title">Log new expense</div>
+        <div class="form-grid">
+          <div class="field span2">
+            <label>Item / description *</label>
+            <input type="text" id="itemName" placeholder="e.g. Depends briefs, Tylenol, bed rails, grocery run…" />
+          </div>
+          <div class="field">
+            <label>Category *</label>
+            <select id="itemCat">
+              <optgroup label="── Resident Care ──">
+                <option value="medications">Medications & OTC</option>
+                <option value="medical">Medical Supplies & Equipment</option>
+                <option value="personal_care">Personal Care Items</option>
+                <option value="nutrition">Nutrition & Special Diet</option>
+                <option value="activities">Activities & Enrichment</option>
+                <option value="transport">Resident Transportation</option>
+              </optgroup>
+              <optgroup label="── Facility Operations ──">
+                <option value="housekeeping">Housekeeping & Laundry</option>
+                <option value="maintenance">Facility Maintenance</option>
+                <option value="safety">Safety & Compliance</option>
+                <option value="office">Office & Admin</option>
+                <option value="food">Food & Groceries</option>
+                <option value="utilities">Utilities & Services</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="field">
+            <label>Paid by</label>
+            <select id="itemPaidBy">
+              <option value="facility">Facility</option>
+              <option value="resident">Resident funds</option>
+              <option value="petty_cash">Petty cash</option>
+              <option value="caregiver">Caregiver (reimb.)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Amount ($) *</label>
+            <input type="number" id="itemAmount" placeholder="0.00" min="0" step="0.01" />
+          </div>
+          <div class="field">
+            <label>Quantity</label>
+            <input type="number" id="itemQty" placeholder="1" min="1" value="1" />
+          </div>
+          <div class="field">
+            <label>Vendor / store</label>
+            <input type="text" id="itemVendor" placeholder="Walgreens, Costco, Amazon…" />
+          </div>
+          <div class="field">
+            <label>Resident (if applicable)</label>
+            <input type="text" id="itemResident" placeholder="Resident name or 'All'" />
+          </div>
+          <div class="field span2 checkbox-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="itemReceipt" /> Receipt on file
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" id="itemReimb" /> Reimbursable
+            </label>
+          </div>
+          <div class="field span2">
+            <label>Notes (optional)</label>
+            <textarea id="itemNotes" rows="2" placeholder="Any additional notes for the record…"></textarea>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-primary" onclick="addExpense()">✓ Add to daily log</button>
+          <button class="btn-outline" onclick="clearForm()">Clear form</button>
+        </div>
+        <div class="form-hint">Fields marked * are required. All entries are timestamped and saved automatically.</div>
+      </div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="tab-reports" class="tab-content">
+      <div class="card">
+        <div class="card-title">Daily summary — <span id="reportDate"></span></div>
+        <table class="report-table" id="reportTable">
+          <thead><tr><th>Time</th><th>Item</th><th>Category</th><th>Resident</th><th>Vendor</th><th>Paid By</th><th>Qty</th><th>Amount</th><th>Receipt</th><th>Reimb.</th></tr></thead>
+          <tbody id="reportBody"></tbody>
+          <tfoot id="reportFoot"></tfoot>
+        </table>
+        <div class="no-data" id="reportEmpty" style="display:none">No entries for this date.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm overlay -->
+  <div class="overlay" id="confirmOverlay" style="display:none">
+    <div class="confirm-box">
+      <div class="confirm-msg" id="confirmMsg"></div>
+      <div class="confirm-actions">
+        <button class="btn-outline" onclick="cancelConfirm()">Cancel</button>
+        <button class="btn-danger" id="confirmOkBtn" onclick="doConfirm()">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
